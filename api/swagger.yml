@@ -1,0 +1,373 @@
+# As described in the description, this is just a simple example implementation for possible dynamic form builder.
+
+openapi: 3.0.3
+info:
+  title: Dynamic Form Builder API
+  description: Simple and totally naive example implementation for possible dynamic form builder. I know it would require more work like for example better error handling (more statuses) or some "admin" endpoints which could be used for adding new or removing field types or field-type parameters or etc. But let's now pretend that such things are delivered to system by DB migrations...
+  version: 1.0.0
+
+paths:
+  /field-types:
+    get:
+      summary: Get all available field types
+      tags: [Form Builder]
+      responses:
+        200:
+          description: List of field types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FieldType'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /field-types/{id}/parameters:
+    get:
+      summary: Get parameters for a specific field type
+      tags: [Form Builder]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: List of parameters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FieldTypeParameter'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /forms:
+    get:
+      summary: List all forms
+      tags: [Forms]
+      responses:
+        200:
+          description: List of forms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Form'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create a new form
+      tags: [Forms]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormWithFields'
+      responses:
+        201:
+          description: Form created
+        400:
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        422:
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /forms/{id}:
+    get:
+      summary: Get a specific form with all fields and parameters
+      tags: [Forms]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Form details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormWithFields'
+        404:
+          description: Form not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /submissions:
+    post:
+      summary: Submit answers to a form
+      tags: [Form Submissions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormSubmissionRequest'
+      responses:
+        201:
+          description: Submission recorded
+        400:
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        422:
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        404:
+          description: Form not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /forms/{id}/submissions:
+    get:
+      summary: Get all submissions for a form
+      tags: [Forms]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: List of submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FormSubmissionWithAnswers'
+        404:
+          description: Form not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /submissions/{submission_id}:
+    get:
+      summary: Get a single submission with its answers
+      description: Returns detailed answers for the given submission ID.
+      tags: [Form Submissions]
+      parameters:
+        - name: submission_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Answers for a specific submission
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  form_id:
+                    type: integer
+                    example: 1
+                  submitted_at:
+                    type: string
+                    format: date-time
+                    example: "2025-05-18T10:00:00Z"
+                  answers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field_id:
+                          type: integer
+                          example: 2
+                        label:
+                          type: string
+                          example: "Favorite Color"
+                        type:
+                          type: string
+                          example: "select"
+                        answer:
+                          type: string
+                          example: "blue"
+        '404':
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error_code:
+          type: integer
+        details:
+          type: string
+
+    FieldType:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+
+    FieldTypeParameter:
+      type: object
+      properties:
+        name:
+          type: string
+        data_type:
+          type: string
+          enum: [string, integer, decimal, boolean]
+        required:
+          type: boolean
+
+    Form:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+
+    FormField:
+      type: object
+      properties:
+        label:
+          type: string
+        field_type_id:
+          type: integer
+        position:
+          type: integer
+        parameters:
+          type: object
+          additionalProperties:
+            type: string
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/FormFieldOption'
+
+    FormFieldOption:
+      type: object
+      properties:
+        label:
+          type: string
+        value:
+          type: string
+
+    FormWithFields:
+      allOf:
+        - $ref: '#/components/schemas/Form'
+        - type: object
+          properties:
+            fields:
+              type: array
+              items:
+                $ref: '#/components/schemas/FormField'
+
+    FormSubmissionRequest:
+      type: object
+      properties:
+        form_id:
+          type: integer
+        answers:
+          type: array
+          items:
+            type: object
+            properties:
+              field_id:
+                type: integer
+              answer:
+                type: string
+
+    FormSubmissionWithAnswers:
+      type: object
+      properties:
+        submission_id:
+          type: integer
+        submitted_at:
+          type: string
+          format: date-time
+        answers:
+          type: array
+          items:
+            type: object
+            properties:
+              field_label:
+                type: string
+              field_type:
+                type: string
+              answer:
+                type: string
